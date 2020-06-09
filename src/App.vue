@@ -114,7 +114,7 @@
             </v-list-item-icon>
 
             <v-list-item-content>
-              <v-list-item-title v-text="item.track"></v-list-item-title>
+              <v-list-item-title v-text="`${item.artist} - ${item.track} (${item.genre})`"></v-list-item-title>
             </v-list-item-content>
           </v-list-item>
         </v-list-item-group>
