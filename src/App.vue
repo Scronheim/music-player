@@ -102,22 +102,31 @@
       <v-btn v-else @click="player.play()">Play</v-btn>
       <hr/>
       <v-list>
-        <v-list-item-group mandatory color="indigo">
-          <v-list-item
-              v-for="(item, i) in filteredTracks"
-              :key="i"
-              @dblclick="switchTrack(item)"
-          >
-            <v-list-item-icon>
-              <v-icon v-if="currentTrackId !== item._id">mdi-play</v-icon>
-              <v-icon v-else>mdi-pause</v-icon>
-            </v-list-item-icon>
+        <v-list-group v-for="group in all" v-bind:key="group._id">
+          <template v-slot:activator>
+            <v-list-item-title>{{ group.group }}</v-list-item-title>
+          </template>
 
-            <v-list-item-content>
-              <v-list-item-title v-text="`${item.artist} - ${item.track} (${item.genre})`"></v-list-item-title>
-            </v-list-item-content>
-          </v-list-item>
-        </v-list-item-group>
+          <v-list-group v-for="album in group.albums" v-bind:key="album.title"
+              no-action
+              sub-group
+              value="false"
+          >
+            <template v-slot:activator>
+              <v-list-item-content>
+                <v-list-item-title>{{ album.title }}</v-list-item-title>
+              </v-list-item-content>
+            </template>
+
+            <v-list-item
+                v-for="(track, i) in album.tracks"
+                :key="i"
+                link
+            >
+              <v-list-item-title v-text="track.title"></v-list-item-title>
+            </v-list-item>
+          </v-list-group>
+        </v-list-group>
       </v-list>
     </v-content>
   </v-app>
@@ -153,7 +162,7 @@
       },
       filteredTracks: function () {
         let self = this;
-        return this.tracks.filter(
+        return this.all.filter(
             function (o) {
               return ((self.filter === '')
                   || (o.track.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
@@ -164,6 +173,8 @@
       },
     },
     data: () => ({
+      open: [],
+      tree: [],
       player: '',
       filter: '',
       dialog: false,
@@ -172,12 +183,12 @@
         { icon: 'mdi-contacts', text: 'Contacts' },
       ],
       currentTrackId: '',
-      tracks: []
+      all: []
     }),
     methods: {
       getAllTracks() {
         axios.get(`${API_URL}/all`).then((response) => {
-          this.tracks = response.data.tracks;
+          this.all = response.data.data;
         })
       },
       switchTrack(track) {

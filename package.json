@@ -17,7 +17,6 @@
     "core-js": "^3.6.5",
     "mongodb": "^3.5.8",
     "mongoose": "^5.9.18",
-    "sqlite3": "^4.2.0",
     "vue": "^2.6.11",
     "vuetify": "^2.2.11",
     "wavesurfer.js": "^3.3.3"
