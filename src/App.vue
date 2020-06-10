@@ -80,7 +80,7 @@
     >
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
       <v-toolbar-title
-          style="width: 300px"
+          style="width: 150px"
           class="ml-0 pl-4"
       >
         <span class="hidden-sm-and-down">Music Library</span>
@@ -98,23 +98,37 @@
     <v-content>
       <div id="waveform"></div>
       <hr/>
-      <v-btn v-if="isPlaying" @click="player.pause()">Pause</v-btn>
-      <v-btn v-else @click="player.play()">Play</v-btn>
+      <v-row>
+        <v-col cols="2">
+          <v-btn v-if="isPlaying" @click="player.pause()">Pause</v-btn>
+          <v-btn v-else @click="player.play()">Play</v-btn>
+          <v-btn @click="nextTrack">Next</v-btn>
+        </v-col>
+        <v-col>
+          <div class="volbox">
+            Volume:<br/>
+            <input id="volume" type="range" min="0" max="1" value="1" step="0.1" @input="setVolume">
+          </div>
+        </v-col>
+        <v-col>
+          {{ currentTrack }}
+        </v-col>
+      </v-row>
       <hr/>
       <v-list>
-        <v-list-group v-for="group in all" v-bind:key="group._id">
+        <v-list-group v-for="artist in filteredArtists" v-bind:key="artist._id">
           <template v-slot:activator>
-            <v-list-item-title>{{ group.group }}</v-list-item-title>
+            <v-list-item-title>{{ artist.artist }}</v-list-item-title>
           </template>
 
-          <v-list-group v-for="album in group.albums" v-bind:key="album.title"
-              no-action
-              sub-group
-              value="false"
+          <v-list-group v-for="album in artist.albums" v-bind:key="album.title"
+                        no-action
+                        sub-group
+                        value="false"
           >
             <template v-slot:activator>
               <v-list-item-content>
-                <v-list-item-title>{{ album.title }}</v-list-item-title>
+                <v-list-item-title>[{{ album.year }}] {{ album.title }} ({{ album.genre }})</v-list-item-title>
               </v-list-item-content>
             </template>
 
@@ -122,6 +136,7 @@
                 v-for="(track, i) in album.tracks"
                 :key="i"
                 link
+                @dblclick="switchTrack(track, album, artist)"
             >
               <v-list-item-title v-text="track.title"></v-list-item-title>
             </v-list-item>
@@ -135,7 +150,10 @@
 <script>
   import WaveSurfer from 'wavesurfer.js';
   import axios from 'axios';
+  import _ from 'lodash';
+
   const API_URL = 'http://localhost:8081';
+  const FILE_URL = 'http://127.0.0.1:8887';
   export default {
     name: 'App',
     mounted () {
@@ -160,17 +178,22 @@
         }
         return false;
       },
-      filteredTracks: function () {
+      filteredArtists: function () {
         let self = this;
         return this.all.filter(
             function (o) {
               return ((self.filter === '')
-                  || (o.track.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
                   || (o.artist.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
               )
             }
         )
       },
+      currentTrack() {
+        if (this.fullTrackInfo.artist.artist !== undefined) {
+          return `${this.fullTrackInfo.artist.artist} - ${this.fullTrackInfo.track.title} (${this.fullTrackInfo.album.title}) [${this.fullTrackInfo.album.year}]`;
+        }
+        return '';
+      }
     },
     data: () => ({
       open: [],
@@ -182,7 +205,11 @@
       menu: [
         { icon: 'mdi-contacts', text: 'Contacts' },
       ],
-      currentTrackId: '',
+      fullTrackInfo: {
+        artist: {},
+        album: {},
+        track: {}
+      },
       all: []
     }),
     methods: {
@@ -191,9 +218,25 @@
           this.all = response.data.data;
         })
       },
-      switchTrack(track) {
-        this.currentTrackId = track._id;
-        this.player.load(track.filepath);
+      switchTrack(track, album, artist) {
+        this.fullTrackInfo.artist = artist;
+        this.fullTrackInfo.album = album;
+        this.fullTrackInfo.track = track;
+        if (this.fullTrackInfo.artist.artist === artist.artist && this.fullTrackInfo.track.title === track.title && this.player.isPlaying()) {
+          this.player.playPause();
+        } else {
+          this.player.load(`${FILE_URL}/${encodeURI(track.filepath)}`);
+        }
+      },
+      setVolume(event) {
+        this.player.setVolume(event.target.value);
+      },
+      nextTrack() {
+        let nextTrack = _.find(this.fullTrackInfo.album.tracks, ['number', this.fullTrackInfo.track.number+1]);
+        if (nextTrack !== undefined) {
+          this.fullTrackInfo.track = nextTrack;
+          this.player.load(`${FILE_URL}/${encodeURI(nextTrack.filepath)}`)
+        }
       }
     },
   };
