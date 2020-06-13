@@ -5,14 +5,15 @@ const AllSchema = new Schema({
     albums:
         [
         {
-            name: String,
+            title: String,
             year: Number,
             genre: String,
             cover: String,
+            mbid: '',
             tracks: [
                 {
                     number: Number,
-                    name: String,
+                    title: String,
                     duration: String,
                     filepath: String
                 }
