@@ -6,71 +6,15 @@
         app
     >
       <v-list dense>
-        <template v-for="item in menu">
-          <v-row
-              v-if="item.heading"
-              :key="item.heading"
-              align="center"
-          >
-            <v-col cols="6">
-              <v-subheader v-if="item.heading">
-                {{ item.heading }}
-              </v-subheader>
-            </v-col>
-            <v-col
-                cols="6"
-                class="text-center"
-            >
-              <a
-                  href="#!"
-                  class="body-2 black--text"
-              >EDIT</a>
-            </v-col>
-          </v-row>
-          <v-list-group
-              v-else-if="item.children"
-              :key="item.text"
-              v-model="item.model"
-              :prepend-icon="item.model ? item.icon : item['icon-alt']"
-              append-icon=""
-          >
-            <template v-slot:activator>
-              <v-list-item-content>
-                <v-list-item-title>
-                  {{ item.text }}
-                </v-list-item-title>
-              </v-list-item-content>
-            </template>
-            <v-list-item
-                v-for="(child, i) in item.children"
-                :key="i"
-                link
-            >
-              <v-list-item-action v-if="child.icon">
-                <v-icon>{{ child.icon }}</v-icon>
-              </v-list-item-action>
-              <v-list-item-content>
-                <v-list-item-title>
-                  {{ child.text }}
-                </v-list-item-title>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list-group>
-          <v-list-item
-              v-else
-              :key="item.text"
-              link
-          >
-            <v-list-item-action>
-              <v-icon>{{ item.icon }}</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-              <v-list-item-title>
-                {{ item.text }}
-              </v-list-item-title>
-            </v-list-item-content>
-          </v-list-item>
-        </template>
+        <v-list-item @click="uploadDialog = true; drawer = false" link>
+          <v-list-item-icon>
+            <v-icon>mdi-plus</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Add new</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
 
@@ -86,9 +30,6 @@
       >
         <span class="hidden-sm-and-down">Music Library</span>
       </v-toolbar-title>
-      <v-btn @click="uploadDialog = true">
-        <v-icon>mdi-plus</v-icon>
-      </v-btn>
       <v-text-field
           flat
           solo-inverted
@@ -172,11 +113,15 @@
                   <v-icon v-else>mdi-shuffle</v-icon>
                 </v-btn>
               </v-col>
-              <v-col>
+              <v-col cols="2">
                 <div class="volbox">
                   Volume:<br/>
                   <input id="volume" type="range" min="0" max="1" value="1" step="0.1" @input="setVolume">
                 </div>
+              </v-col>
+              <v-col v-if="currentTrack !== ''">
+                Current track: <b>{{ currentTrack }}</b>
+<!--                <v-img :src="fullTrackInfo.album.cover" max-width="120" position="center"></v-img>-->
               </v-col>
             </v-row>
           </v-card-text>
@@ -195,7 +140,8 @@
               <v-select label="Year" :items="yearsList" v-model="selectedAlbum.year"></v-select>
               <v-text-field label="Genre" v-model="selectedAlbum.genre"></v-text-field>
               <v-text-field label="MBID" v-model="selectedAlbum.mbid"></v-text-field>
-              <v-text-field label="Cover" v-model="selectedAlbum.cover"></v-text-field>
+              <v-text-field label="Cover" v-model="selectedAlbum.cover" :append-icon="selectedAlbum.mbid ? 'mdi-download': ''"
+              @click:append="getCover"></v-text-field>
               <v-text-field v-for="track in selectedAlbum.tracks" v-bind:key="track.title" v-model="track.title"></v-text-field>
             </template>
           </v-card-text>
@@ -259,6 +205,7 @@
 
   const API_URL = 'http://localhost:8081';
   const FILE_URL = 'http://127.0.0.1:8887';
+  const COVER_ART_URL = 'https://coverartarchive.org/release'
   export default {
     name: 'App',
     mounted () {
@@ -406,6 +353,13 @@
           if (response.data.data) {
             this.uploadDialog = false;
             this.getAllTracks();
+          }
+        })
+      },
+      getCover() {
+        axios.get(`${COVER_ART_URL}/${this.selectedAlbum.mbid}`).then((response) => {
+          if (response.status === 200) {
+            this.selectedAlbum.cover = _.find(response.data.images, ['front', true]).thumbnails['250'];
           }
         })
       }
