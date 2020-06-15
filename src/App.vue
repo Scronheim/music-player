@@ -40,7 +40,7 @@
           v-model="filter"
       ></v-text-field>
     </v-app-bar>
-    <v-content>
+    <v-main>
       <v-list>
         <v-list-group v-for="(artist, index) in filteredArtists" v-bind:key="artist._id">
           <template v-slot:activator>
@@ -119,6 +119,9 @@
                   <input id="volume" type="range" min="0" max="1" value="1" step="0.1" @input="setVolume">
                 </div>
               </v-col>
+              <v-col cols="1">
+                <v-img :src="fullTrackInfo.album.cover"></v-img>
+              </v-col>
               <v-col v-if="currentTrack !== ''">
                 Current track: <b>{{ currentTrack }}</b>
 <!--                <v-img :src="fullTrackInfo.album.cover" max-width="120" position="center"></v-img>-->
@@ -169,6 +172,8 @@
         <v-card>
           <v-card-title class="headline">Add Data</v-card-title>
           <v-card-text>
+            <v-file-input label="File" v-model="zipFile"></v-file-input>
+            <v-btn @click="unzip">Unzip</v-btn>
             <v-textarea
                 label="Put JSON here"
                 v-model="jsonForInsert"
@@ -194,7 +199,7 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
-    </v-content>
+    </v-main>
   </v-app>
 </template>
 
@@ -218,6 +223,9 @@
       });
       this.player.on('ready', () => {
         this.player.play();
+      });
+      this.player.on('finish', () => {
+        this.nextTrack();
       });
       this.player.on('error', function(e) {
         console.warn(e)
@@ -283,7 +291,8 @@
         }]},
       shuffle: false,
       selectedAlbum: '',
-      jsonForInsert: ''
+      jsonForInsert: '',
+      zipFile: []
     }),
     methods: {
       getAllTracks() {
@@ -361,6 +370,13 @@
           if (response.status === 200) {
             this.selectedAlbum.cover = _.find(response.data.images, ['front', true]).thumbnails['250'];
           }
+        })
+      },
+      unzip() {
+        let formData = new FormData();
+        formData.append('file', this.zipFile)
+        axios.post(`${API_URL}/upload`, formData).then((response) => {
+          console.log(response)
         })
       }
     },

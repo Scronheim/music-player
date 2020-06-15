@@ -5,6 +5,10 @@ const morgan = require('morgan');
 const config = require('./config/config');
 const mongoose = require('mongoose');
 const AllModel = require('./models/all');
+const formidable = require('formidable');
+const unrar = require('unrar');
+const fs = require('fs');
+
 const app = express();
 app.use(morgan('combined'));
 app.use(bodyParser.json());
@@ -19,6 +23,36 @@ mongoose.connection
             () => console.log(`Server start on port ${config.port} ...`))
     })
     .on('error', error => console.warn(error));
+
+const uploadMedia = (req, res) => {
+    const form = formidable();
+    form.parse(req, (err, fields, files) => {
+        let archive = new unrar(files.file.path);
+        archive.list(function(err, entries) {
+            let tmpDir = '/tmp/player/';
+            for (let i = 0; i < entries.length; i++) {
+                let name = entries[i].name;
+                let type = entries[i].type
+                if (type !== 'File') {
+                    fs.mkdirSync(tmpDir+name)
+                }
+            }
+            for (let i = 0; i < entries.length; i++) {
+                let name = entries[i].name;
+                let type = entries[i].type;
+                if (type !== 'File') {
+                    continue;
+                }
+
+                let stream = archive.stream(name);
+                fs.writeFileSync(tmpDir+name, stream);
+            }
+        });
+        res.send({fields, files})
+    })
+
+}
+
 
 app.get('/all', (req, res) => {
     AllModel.find({}, (err, results) => {
@@ -49,3 +83,5 @@ app.post('/addData', (req, res) => {
         }
     })
 });
+
+app.post('/upload', uploadMedia);
