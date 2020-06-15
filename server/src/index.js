@@ -11,7 +11,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 const uri = "mongodb://localhost/music?retryWrites=true&w=majority";
-mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true});
+mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: true});
 mongoose.connection
     .once('open', () => {
         console.log(`Mongoose - successful connection ...`);
@@ -27,11 +27,21 @@ app.get('/all', (req, res) => {
         } else {
             res.send({data: results })
         }
-    }).sort({ _id: -1 });
+    }).sort({ artist: 1 });
 });
 
 app.patch('/saveData', (req, res) => {
     AllModel.updateOne({_id: req.body._id}, req.body, (err, results) => {
+        if (err) {
+            res.sendStatus(500)
+        } else {
+            res.send({data: results })
+        }
+    })
+});
+
+app.post('/addData', (req, res) => {
+    AllModel.findOneAndUpdate({artist: req.body.artist}, req.body, {upsert: true}, (err, results) => {
         if (err) {
             res.sendStatus(500)
         } else {

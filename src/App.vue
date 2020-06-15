@@ -86,6 +86,9 @@
       >
         <span class="hidden-sm-and-down">Music Library</span>
       </v-toolbar-title>
+      <v-btn @click="uploadDialog = true">
+        <v-icon>mdi-plus</v-icon>
+      </v-btn>
       <v-text-field
           flat
           solo-inverted
@@ -216,6 +219,35 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
+      <v-dialog v-model="uploadDialog" max-width="550" eager>
+        <v-card>
+          <v-card-title class="headline">Add Data</v-card-title>
+          <v-card-text>
+            <v-textarea
+                label="Put JSON here"
+                v-model="jsonForInsert"
+            ></v-textarea>
+          </v-card-text>
+
+          <v-card-actions>
+            <v-spacer></v-spacer>
+
+            <v-btn
+                color="red darken-1"
+                text
+                @click="uploadDialog = false"
+            >
+              Cancel
+            </v-btn>
+
+            <v-btn
+                color="green darken-1"
+                text
+                @click="addData"
+            >Upload</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-content>
   </v-app>
 </template>
@@ -287,6 +319,7 @@
       drawer: false,
       showAlert: false,
       editDialog: false,
+      uploadDialog: false,
       menu: [
         { icon: 'mdi-contacts', text: 'Contacts' },
       ],
@@ -303,6 +336,7 @@
         }]},
       shuffle: false,
       selectedAlbum: '',
+      jsonForInsert: ''
     }),
     methods: {
       getAllTracks() {
@@ -363,6 +397,14 @@
         axios.patch(`${API_URL}/saveData`, this.editableArtist).then((response) => {
           if (response.data.data.ok === 1) {
             this.editDialog = false;
+            this.getAllTracks();
+          }
+        })
+      },
+      addData() {
+        axios.post(`${API_URL}/addData`, JSON.parse(this.jsonForInsert)).then((response) => {
+          if (response.data.data) {
+            this.uploadDialog = false;
             this.getAllTracks();
           }
         })

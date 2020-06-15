@@ -21,6 +21,6 @@ const AllSchema = new Schema({
         }
     ],
     mbid: String
-});
+}, {versionKey: false});
 const AllModel = mongoose.model('all', AllSchema, 'all');
 module.exports = AllModel;
