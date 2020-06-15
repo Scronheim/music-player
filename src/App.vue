@@ -15,6 +15,24 @@
             <v-list-item-title>Add new</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
+        <v-list-item @click="showLikedTracks = false; drawer = false" link>
+          <v-list-item-icon>
+            <v-icon>mdi-home</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Home</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item @click="showLiked" link>
+          <v-list-item-icon>
+            <v-icon>mdi-thumb-up</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title>Liked</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
       </v-list>
     </v-navigation-drawer>
 
@@ -41,7 +59,7 @@
       ></v-text-field>
     </v-app-bar>
     <v-main>
-      <v-list>
+      <v-list v-if="!showLikedTracks">
         <v-list-group v-for="(artist, index) in filteredArtists" v-bind:key="artist._id">
           <template v-slot:activator>
             <v-list-item-title>{{ artist.artist }}</v-list-item-title>
@@ -70,10 +88,21 @@
                 @dblclick="switchTrack(track, album, artist)"
             >
               <v-list-item-title v-text="track.title"></v-list-item-title>
+              <v-list-item-icon>
+                <v-btn @click.native.stop="likeTrack(artist, album, track)">
+                  <v-icon v-if="track.liked">mdi-thumb-down</v-icon>
+                  <v-icon v-else>mdi-thumb-up</v-icon>
+                </v-btn>
+              </v-list-item-icon>
             </v-list-item>
           </v-list-group>
         </v-list-group>
       </v-list>
+      <v-row v-else>
+        <v-col v-for="track in filteredArtists" v-bind:key="track._id">
+          <liked-tracks :track="track"  style="margin-top: 100px"></liked-tracks>
+        </v-col>
+      </v-row>
       <v-snackbar
           right
           top
@@ -104,9 +133,9 @@
             <div id="waveform"></div>
             <v-row>
               <v-col cols="3">
-                <v-btn v-if="isPlaying" @click="player.pause()">Pause</v-btn>
-                <v-btn v-else @click="player.play()">Play</v-btn>
                 <v-btn @click="previousTrack"><v-icon>mdi-skip-previous</v-icon></v-btn>
+                <v-btn v-if="isPlaying" @click="player.pause()"><v-icon>mdi-pause</v-icon></v-btn>
+                <v-btn v-else @click="player.play()"><v-icon>mdi-play</v-icon></v-btn>
                 <v-btn @click="nextTrack"><v-icon>mdi-skip-next</v-icon></v-btn>
                 <v-btn @click="shuffle = !shuffle">
                   <v-icon v-if="shuffle" color="orange darken-2">mdi-shuffle</v-icon>
@@ -124,7 +153,7 @@
               </v-col>
               <v-col v-if="currentTrack !== ''">
                 Current track: <b>{{ currentTrack }}</b>
-<!--                <v-img :src="fullTrackInfo.album.cover" max-width="120" position="center"></v-img>-->
+                <!--                <v-img :src="fullTrackInfo.album.cover" max-width="120" position="center"></v-img>-->
               </v-col>
             </v-row>
           </v-card-text>
@@ -144,7 +173,7 @@
               <v-text-field label="Genre" v-model="selectedAlbum.genre"></v-text-field>
               <v-text-field label="MBID" v-model="selectedAlbum.mbid"></v-text-field>
               <v-text-field label="Cover" v-model="selectedAlbum.cover" :append-icon="selectedAlbum.mbid ? 'mdi-download': ''"
-              @click:append="getCover"></v-text-field>
+                            @click:append="getCover"></v-text-field>
               <v-text-field v-for="track in selectedAlbum.tracks" v-bind:key="track.title" v-model="track.title"></v-text-field>
             </template>
           </v-card-text>
@@ -207,12 +236,14 @@
   import WaveSurfer from 'wavesurfer.js';
   import axios from 'axios';
   import _ from 'lodash';
+  import LikedTracks from "./components/LikedTracks";
 
   const API_URL = 'http://localhost:8081';
   const FILE_URL = 'http://127.0.0.1:8887';
-  const COVER_ART_URL = 'https://coverartarchive.org/release'
+  const COVER_ART_URL = 'https://coverartarchive.org/release';
   export default {
     name: 'App',
+    components: {LikedTracks},
     mounted () {
       this.$vuetify.theme.dark = true;
       this.player = WaveSurfer.create({
@@ -231,6 +262,7 @@
         console.warn(e)
       });
       this.getAllTracks();
+      this.getLiked();
     },
     computed: {
       isPlaying () {
@@ -241,6 +273,17 @@
       },
       filteredArtists: function () {
         let self = this;
+        if (this.showLikedTracks) {
+          return this.likedTracks.filter(
+              function (o) {
+                return ((self.filter === '')
+                    || (o.artist.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
+                    || (o.album.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
+                    || (o.title.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
+                )
+              }
+          )
+        }
         return this.all.filter(
             function (o) {
               return ((self.filter === '')
@@ -277,6 +320,7 @@
       uploadDialog: false,
       menu: [
         { icon: 'mdi-contacts', text: 'Contacts' },
+        { icon: 'mdi-thumb-up', text: 'Liked' },
       ],
       countries: ['Russia', 'Germany', 'USA', 'Spain', 'Israel'],
       fullTrackInfo: {
@@ -285,6 +329,8 @@
         track: {}
       },
       all: [],
+      likedTracks: [],
+      showLikedTracks: false,
       editableArtist: {albums: [{
           title: '',
           year: ''
@@ -319,6 +365,7 @@
           nextTrack = this.getRandomTrack();
         } else {
           nextTrack = _.find(this.fullTrackInfo.album.tracks, ['number', this.fullTrackInfo.track.number + 1]);
+          this.fullTrackInfo.track = nextTrack;
         }
         if (nextTrack !== undefined) {
           this.player.load(`${FILE_URL}/${encodeURI(nextTrack.filepath)}`)
@@ -339,6 +386,7 @@
           prevTrack = this.getRandomTrack();
         } else {
           prevTrack = _.find(this.fullTrackInfo.album.tracks, ['number', this.fullTrackInfo.track.number - 1]);
+          this.fullTrackInfo.track = prevTrack;
         }
         if (prevTrack !== undefined) {
           this.player.load(`${FILE_URL}/${encodeURI(prevTrack.filepath)}`)
@@ -374,10 +422,39 @@
       },
       unzip() {
         let formData = new FormData();
-        formData.append('file', this.zipFile)
+        formData.append('file', this.zipFile);
         axios.post(`${API_URL}/upload`, formData).then((response) => {
           console.log(response)
         })
+      },
+      likeTrack(artist, album, track) {
+        track.liked = !track.liked;
+        this.editableArtist = artist;
+        this.saveData();
+        this.saveLike(artist, album,  track);
+      },
+      saveLike(artist, album, track) {
+        let payload = {
+          artist: artist.artist,
+          album: album.title,
+          title: track.title,
+          year: album.year,
+          number: track.number,
+          filepath: track.filepath,
+          cover: album.cover
+        };
+        axios.post(`${API_URL}/liked`, payload).then((response) => {
+          console.log(response)
+        })
+      },
+      getLiked() {
+        axios.get(`${API_URL}/liked`).then((response) => {
+          this.likedTracks = response.data.data;
+        })
+      },
+      showLiked() {
+        this.showLikedTracks = true;
+        this.drawer = false;
       }
     },
   };

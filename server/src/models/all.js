@@ -15,7 +15,9 @@ const AllSchema = new Schema({
                 {
                     number: Number,
                     title: String,
-                    filepath: String
+                    filepath: String,
+                    liked: Boolean,
+                    playCounts: Number
                 }
             ]
         }

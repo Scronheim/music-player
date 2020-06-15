@@ -5,6 +5,7 @@ const morgan = require('morgan');
 const config = require('./config/config');
 const mongoose = require('mongoose');
 const AllModel = require('./models/all');
+const LikeModel = require('./models/liked');
 const formidable = require('formidable');
 const unrar = require('unrar');
 const fs = require('fs');
@@ -25,14 +26,18 @@ mongoose.connection
     .on('error', error => console.warn(error));
 
 const uploadMedia = (req, res) => {
-    const form = formidable();
+    const form = formidable({
+        keepExtensions: true
+    });
     form.parse(req, (err, fields, files) => {
         let archive = new unrar(files.file.path);
         archive.list(function(err, entries) {
-            let tmpDir = '/tmp/player/';
+            console.log(entries)
+            if (err) console.log(err);
+            let tmpDir = 'E:\\123\\';
             for (let i = 0; i < entries.length; i++) {
                 let name = entries[i].name;
-                let type = entries[i].type
+                let type = entries[i].type;
                 if (type !== 'File') {
                     fs.mkdirSync(tmpDir+name)
                 }
@@ -50,8 +55,7 @@ const uploadMedia = (req, res) => {
         });
         res.send({fields, files})
     })
-
-}
+};
 
 
 app.get('/all', (req, res) => {
@@ -64,8 +68,28 @@ app.get('/all', (req, res) => {
     }).sort({ artist: 1 });
 });
 
+app.get('/liked', (req, res) => {
+    LikeModel.find({}, (err, results) => {
+        if (err) {
+            res.sendStatus(500)
+        } else {
+            res.send({data: results })
+        }
+    }).sort({ _id: -1 });
+});
+
 app.patch('/saveData', (req, res) => {
     AllModel.updateOne({_id: req.body._id}, req.body, (err, results) => {
+        if (err) {
+            res.sendStatus(500)
+        } else {
+            res.send({data: results })
+        }
+    })
+});
+
+app.post('/liked', (req, res) => {
+    LikeModel.findOneAndUpdate({filepath: req.body.filepath}, req.body, {upsert: true}, (err, results) => {
         if (err) {
             res.sendStatus(500)
         } else {
