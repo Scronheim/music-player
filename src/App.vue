@@ -188,8 +188,12 @@
             <v-text-field label="MBID" v-model="editableArtist.mbid"></v-text-field>
             <v-select id="selectedAlbum" :items="editableArtist.albums" label="Albums" item-text="title" item-value="index"
                       return-object v-model="selectedAlbum"></v-select>
-            <template v-if="selectedAlbum !== ''">
-              <v-text-field v-for="(track) in selectedAlbum.tracks" v-bind:key="track.title" v-model="track.title"></v-text-field>
+            <template v-if="selectedAlbum.title !== undefined">
+              <v-select label="Year" :items="yearsList" v-model="selectedAlbum.year"></v-select>
+              <v-text-field label="Genre" v-model="selectedAlbum.genre"></v-text-field>
+              <v-text-field label="MBID" v-model="selectedAlbum.mbid"></v-text-field>
+              <v-text-field label="Cover" v-model="selectedAlbum.cover"></v-text-field>
+              <v-text-field v-for="track in selectedAlbum.tracks" v-bind:key="track.title" v-model="track.title"></v-text-field>
             </template>
           </v-card-text>
 
@@ -199,7 +203,7 @@
             <v-btn
                 color="red darken-1"
                 text
-                @click="editDialog = false"
+                @click="editDialog = false; selectedAlbum = {}"
             >
               Cancel
             </v-btn>
