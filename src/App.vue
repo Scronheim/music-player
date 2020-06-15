@@ -98,12 +98,17 @@
     </v-app-bar>
     <v-content>
       <v-list>
-        <v-list-group v-for="artist in filteredArtists" v-bind:key="artist._id">
+        <v-list-group v-for="(artist, index) in filteredArtists" v-bind:key="artist._id">
           <template v-slot:activator>
             <v-list-item-title>{{ artist.artist }}</v-list-item-title>
+            <v-list-item-action>
+              <v-btn icon @click.native.stop="editData(artist, index)">
+                <v-icon color="grey lighten-1">mdi-pencil</v-icon>
+              </v-btn>
+            </v-list-item-action>
           </template>
 
-          <v-list-group v-for="(album, index) in artist.albums" v-bind:key="album.title"
+          <v-list-group v-for="(album) in artist.albums" v-bind:key="album.title"
                         no-action
                         sub-group
                         value="false"
@@ -112,11 +117,6 @@
               <v-list-item-content>
                 <v-list-item-title>[{{ album.year }}] {{ album.title }} ({{ album.genre }})</v-list-item-title>
               </v-list-item-content>
-              <v-list-item-action>
-                <v-btn icon @click.native.stop="editAlbum(artist, index)">
-                  <v-icon color="grey lighten-1">mdi-pencil</v-icon>
-                </v-btn>
-              </v-list-item-action>
             </template>
 
             <v-list-item
@@ -159,10 +159,15 @@
           <v-card-text>
             <div id="waveform"></div>
             <v-row>
-              <v-col cols="2">
+              <v-col cols="3">
                 <v-btn v-if="isPlaying" @click="player.pause()">Pause</v-btn>
                 <v-btn v-else @click="player.play()">Play</v-btn>
-                <v-btn @click="nextTrack">Next</v-btn>
+                <v-btn @click="previousTrack"><v-icon>mdi-skip-previous</v-icon></v-btn>
+                <v-btn @click="nextTrack"><v-icon>mdi-skip-next</v-icon></v-btn>
+                <v-btn @click="shuffle = !shuffle">
+                  <v-icon v-if="shuffle" color="orange darken-2">mdi-shuffle</v-icon>
+                  <v-icon v-else>mdi-shuffle</v-icon>
+                </v-btn>
               </v-col>
               <v-col>
                 <div class="volbox">
@@ -174,21 +179,18 @@
           </v-card-text>
         </v-card>
       </v-footer>
-      <v-dialog
-          v-model="editDialog"
-          max-width="500"
-          eager
-      >
+      <v-dialog v-model="editDialog" max-width="500" eager>
         <v-card>
-          <v-card-title class="headline">Edit album</v-card-title>
-
+          <v-card-title class="headline">Edit data</v-card-title>
           <v-card-text>
-            <v-text-field label="Title" v-model="editableArtist.albums[editableIndex].title"></v-text-field>
-            <v-select v-model="editableArtist.albums[editableIndex].year"
-                      :items="yearsList"
-                      label="Year"
-            ></v-select>
-            <v-text-field label="Genre" v-model="editableArtist.albums[editableIndex].genre"></v-text-field>
+            <v-text-field label="Artist title" v-model="editableArtist.artist"></v-text-field>
+            <v-select :items="countries" label="Country" v-model="editableArtist.country"></v-select>
+            <v-text-field label="MBID" v-model="editableArtist.mbid"></v-text-field>
+            <v-select id="selectedAlbum" :items="editableArtist.albums" label="Albums" item-text="title" item-value="index"
+                      return-object v-model="selectedAlbum"></v-select>
+            <template v-if="selectedAlbum !== ''">
+              <v-text-field v-for="(track) in selectedAlbum.tracks" v-bind:key="track.title" v-model="track.title"></v-text-field>
+            </template>
           </v-card-text>
 
           <v-card-actions>
@@ -205,7 +207,7 @@
             <v-btn
                 color="green darken-1"
                 text
-                @click="saveAlbum"
+                @click="saveData"
             >Save</v-btn>
           </v-card-actions>
         </v-card>
@@ -261,6 +263,9 @@
           return `${this.fullTrackInfo.artist.artist} - ${this.fullTrackInfo.track.title} (${this.fullTrackInfo.album.title}) [${this.fullTrackInfo.album.year}]`;
         }
         return '';
+      },
+      tracksInAlbum() {
+        return this.selectedAlbum.tracks;
       }
     },
     watch: {
@@ -281,6 +286,7 @@
       menu: [
         { icon: 'mdi-contacts', text: 'Contacts' },
       ],
+      countries: ['Russia', 'Germany', 'USA', 'Spain', 'Israel'],
       fullTrackInfo: {
         artist: {},
         album: {},
@@ -291,7 +297,8 @@
           title: '',
           year: ''
         }]},
-      editableIndex: 0
+      shuffle: false,
+      selectedAlbum: '',
     }),
     methods: {
       getAllTracks() {
@@ -313,19 +320,43 @@
         this.player.setVolume(event.target.value);
       },
       nextTrack() {
-        let nextTrack = _.find(this.fullTrackInfo.album.tracks, ['number', this.fullTrackInfo.track.number+1]);
+        let nextTrack;
+        if (this.shuffle) {
+          nextTrack = this.getRandomTrack();
+        } else {
+          nextTrack = _.find(this.fullTrackInfo.album.tracks, ['number', this.fullTrackInfo.track.number + 1]);
+        }
         if (nextTrack !== undefined) {
-          this.fullTrackInfo.track = nextTrack;
           this.player.load(`${FILE_URL}/${encodeURI(nextTrack.filepath)}`)
         }
       },
-      editAlbum(artist, index) {
+      getRandomTrack() {
+        let randomArtistIndex = _.random(0, this.all.length-1);
+        this.fullTrackInfo.artist = this.all[randomArtistIndex];
+        let randomAlbumIndex = _.random(0, this.all[randomArtistIndex].albums.length-1);
+        this.fullTrackInfo.album = this.all[randomArtistIndex].albums[randomAlbumIndex];
+        let randomTrackIndex = _.random(0, this.all[randomArtistIndex].albums[randomAlbumIndex].tracks.length-1);
+        this.fullTrackInfo.track = this.all[randomArtistIndex].albums[randomAlbumIndex].tracks[randomTrackIndex];
+        return this.all[randomArtistIndex].albums[randomAlbumIndex].tracks[randomTrackIndex];
+      },
+      previousTrack() {
+        let prevTrack;
+        if (this.shuffle) {
+          prevTrack = this.getRandomTrack();
+        } else {
+          prevTrack = _.find(this.fullTrackInfo.album.tracks, ['number', this.fullTrackInfo.track.number - 1]);
+        }
+        if (prevTrack !== undefined) {
+          this.player.load(`${FILE_URL}/${encodeURI(prevTrack.filepath)}`)
+        }
+      },
+      editData(artist) {
         this.editableArtist = _.cloneDeep(artist);
-        this.editableIndex = index;
+        this.selectedAlbum = {};
         this.editDialog = true;
       },
-      saveAlbum() {
-        axios.patch(`${API_URL}/saveAlbum`, this.editableArtist).then((response) => {
+      saveData() {
+        axios.patch(`${API_URL}/saveData`, this.editableArtist).then((response) => {
           if (response.data.data.ok === 1) {
             this.editDialog = false;
             this.getAllTracks();

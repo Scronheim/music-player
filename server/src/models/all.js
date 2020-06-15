@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 const AllSchema = new Schema({
-    group: String,
+    artist: String,
+    country: String,
     albums:
         [
         {
@@ -14,12 +15,12 @@ const AllSchema = new Schema({
                 {
                     number: Number,
                     title: String,
-                    duration: String,
                     filepath: String
                 }
             ]
         }
-    ]
+    ],
+    mbid: String
 });
 const AllModel = mongoose.model('all', AllSchema, 'all');
 module.exports = AllModel;

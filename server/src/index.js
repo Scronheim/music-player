@@ -30,8 +30,7 @@ app.get('/all', (req, res) => {
     }).sort({ _id: -1 });
 });
 
-app.patch('/saveAlbum', (req, res) => {
-    console.log(req.body)
+app.patch('/saveData', (req, res) => {
     AllModel.updateOne({_id: req.body._id}, req.body, (err, results) => {
         if (err) {
             res.sendStatus(500)

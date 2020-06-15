@@ -13,7 +13,6 @@
   },
   "main": "background.js",
   "dependencies": {
-    "alertifyjs": "^1.13.1",
     "axios": "^0.19.2",
     "core-js": "^3.6.5",
     "lodash": "^4.17.15",
