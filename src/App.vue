@@ -89,7 +89,8 @@
             >
               <v-list-item-title v-text="track.title"></v-list-item-title>
               <v-list-item-icon>
-                <v-btn @click.native.stop="likeTrack(artist, album, track)">
+                <v-icon>mdi-music-note</v-icon> {{ track.playCounts }}
+                <v-btn @click.native.stop="likeTrack(artist, album, track)" icon>
                   <v-icon v-if="track.liked">mdi-thumb-down</v-icon>
                   <v-icon v-else>mdi-thumb-up</v-icon>
                 </v-btn>
@@ -100,7 +101,7 @@
       </v-list>
       <v-row v-else>
         <v-col v-for="track in filteredArtists" v-bind:key="track._id">
-          <liked-tracks :track="track"  style="margin-top: 100px"></liked-tracks>
+          <liked-tracks @play="play" @deleteLike="deleteLike" :track="track"  style="margin-top: 100px"></liked-tracks>
         </v-col>
       </v-row>
       <v-snackbar
@@ -201,8 +202,6 @@
         <v-card>
           <v-card-title class="headline">Add Data</v-card-title>
           <v-card-text>
-            <v-file-input label="File" v-model="zipFile"></v-file-input>
-            <v-btn @click="unzip">Unzip</v-btn>
             <v-textarea
                 label="Put JSON here"
                 v-model="jsonForInsert"
@@ -298,9 +297,6 @@
         }
         return '';
       },
-      tracksInAlbum() {
-        return this.selectedAlbum.tracks;
-      }
     },
     watch: {
       'fullTrackInfo.track': function () {
@@ -308,20 +304,13 @@
       }
     },
     data: () => ({
-      open: [],
       yearsList: _.range(2020, 2000),
-      tree: [],
       player: '',
       filter: '',
-      dialog: false,
       drawer: false,
       showAlert: false,
       editDialog: false,
       uploadDialog: false,
-      menu: [
-        { icon: 'mdi-contacts', text: 'Contacts' },
-        { icon: 'mdi-thumb-up', text: 'Liked' },
-      ],
       countries: ['Russia', 'Germany', 'USA', 'Spain', 'Israel'],
       fullTrackInfo: {
         artist: {},
@@ -347,12 +336,14 @@
         })
       },
       switchTrack(track, album, artist) {
-        this.fullTrackInfo.artist = artist;
-        this.fullTrackInfo.album = album;
-        this.fullTrackInfo.track = track;
-        if (this.fullTrackInfo.artist.artist === artist.artist && this.fullTrackInfo.track.title === track.title && this.player.isPlaying()) {
+        if (this.fullTrackInfo.artist.artist === artist.artist && this.fullTrackInfo.track.title === track.title) {
           this.player.playPause();
         } else {
+          this.fullTrackInfo.artist = artist;
+          this.fullTrackInfo.album = album;
+          this.fullTrackInfo.track = track;
+          track.playCounts += 1;
+          this.saveData(artist);
           this.player.load(`${FILE_URL}/${encodeURI(track.filepath)}`);
         }
       },
@@ -368,7 +359,7 @@
           this.fullTrackInfo.track = nextTrack;
         }
         if (nextTrack !== undefined) {
-          this.player.load(`${FILE_URL}/${encodeURI(nextTrack.filepath)}`)
+          this.player.load(`${FILE_URL}/${encodeURI(nextTrack.filepath)}`);
         }
       },
       getRandomTrack() {
@@ -397,8 +388,11 @@
         this.selectedAlbum = {};
         this.editDialog = true;
       },
-      saveData() {
-        axios.patch(`${API_URL}/saveData`, this.editableArtist).then((response) => {
+      saveData(artist) {
+        if (artist === undefined) {
+          artist = this.editableArtist;
+        }
+        axios.patch(`${API_URL}/saveData`, artist).then((response) => {
           if (response.data.data.ok === 1) {
             this.editDialog = false;
             this.getAllTracks();
@@ -431,7 +425,19 @@
         track.liked = !track.liked;
         this.editableArtist = artist;
         this.saveData();
-        this.saveLike(artist, album,  track);
+        if (track.liked) {
+          this.saveLike(artist, album, track);
+        } else {
+          let modTrack = _.clone(track);
+          modTrack.artist = artist.artist;
+          modTrack.album = album.title;
+          this.deleteLike(modTrack);
+        }
+      },
+      deleteLike(track) {
+        axios.delete(`${API_URL}/liked/?file=${track.filepath}&artist=${track.artist}&album=${track.album}`).then(() => {
+          this.getLiked();
+        });
       },
       saveLike(artist, album, track) {
         let payload = {
@@ -441,11 +447,12 @@
           year: album.year,
           number: track.number,
           filepath: track.filepath,
-          cover: album.cover
+          cover: album.cover,
+          genre: album.genre
         };
-        axios.post(`${API_URL}/liked`, payload).then((response) => {
-          console.log(response)
-        })
+        axios.post(`${API_URL}/liked`, payload).then(() => {
+          this.getLiked();
+        });
       },
       getLiked() {
         axios.get(`${API_URL}/liked`).then((response) => {
@@ -455,7 +462,14 @@
       showLiked() {
         this.showLikedTracks = true;
         this.drawer = false;
-      }
+      },
+      play(track) {
+        this.fullTrackInfo.artist.artist = track.artist;
+        this.fullTrackInfo.album.title = track.album;
+        this.fullTrackInfo.album.year = track.year;
+        this.fullTrackInfo.track.title = track.title;
+        this.player.load(`${FILE_URL}/${encodeURI(track.filepath)}`);
+      },
     },
   };
 </script>

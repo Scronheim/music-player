@@ -13,16 +13,25 @@
                 gradient="to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5)"
                 height="200px"
             >
+              <template v-slot:placeholder>
+                <v-row
+                    class="fill-height ma-0"
+                    align="center"
+                    justify="center"
+                >
+                  <v-progress-circular indeterminate color="grey lighten-5"></v-progress-circular>
+                </v-row>
+              </template>
               <v-card-title v-text="`${track.artist} - ${track.title}`"></v-card-title>
             </v-img>
 
             <v-card-actions>
               {{ track.album }} ({{ track.year }})
               <v-spacer></v-spacer>
-              <v-btn icon>
+              <v-btn icon @click="$emit('play', track)">
                 <v-icon>mdi-play</v-icon>
               </v-btn>
-              <v-btn icon>
+              <v-btn icon @click="$emit('deleteLike', track)">
                 <v-icon>mdi-heart</v-icon>
               </v-btn>
               <v-btn icon>
@@ -38,7 +47,7 @@
 
 <script>
   export default {
-    props: ['track'],
+    props: ['track', 'player'],
     name: 'LikedTracks',
     data: () => ({
 

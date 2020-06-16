@@ -7,7 +7,8 @@ const LikeSchema = new Schema({
     number: Number,
     filepath: String,
     year: Number,
-    cover: String
+    cover: String,
+    genre: String
 }, {versionKey: false});
 const AllModel = mongoose.model('liked_tracks', LikeSchema, 'liked_tracks');
 module.exports = AllModel;

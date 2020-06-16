@@ -32,7 +32,6 @@ const uploadMedia = (req, res) => {
     form.parse(req, (err, fields, files) => {
         let archive = new unrar(files.file.path);
         archive.list(function(err, entries) {
-            console.log(entries)
             if (err) console.log(err);
             let tmpDir = 'E:\\123\\';
             for (let i = 0; i < entries.length; i++) {
@@ -68,6 +67,16 @@ app.get('/all', (req, res) => {
     }).sort({ artist: 1 });
 });
 
+app.patch('/saveData', (req, res) => {
+    AllModel.updateOne({_id: req.body._id}, req.body, (err, results) => {
+        if (err) {
+            res.sendStatus(500)
+        } else {
+            res.send({data: results })
+        }
+    });
+});
+
 app.get('/liked', (req, res) => {
     LikeModel.find({}, (err, results) => {
         if (err) {
@@ -78,16 +87,6 @@ app.get('/liked', (req, res) => {
     }).sort({ _id: -1 });
 });
 
-app.patch('/saveData', (req, res) => {
-    AllModel.updateOne({_id: req.body._id}, req.body, (err, results) => {
-        if (err) {
-            res.sendStatus(500)
-        } else {
-            res.send({data: results })
-        }
-    })
-});
-
 app.post('/liked', (req, res) => {
     LikeModel.findOneAndUpdate({filepath: req.body.filepath}, req.body, {upsert: true}, (err, results) => {
         if (err) {
@@ -95,7 +94,17 @@ app.post('/liked', (req, res) => {
         } else {
             res.send({data: results })
         }
-    })
+    });
+});
+
+app.delete('/liked', (req, res) => {
+    LikeModel.deleteOne({filepath: req.query.file}, (err, results) => {
+        AllModel.updateOne({'albums.tracks.filepath': req.query.file},
+            {$set: {'albums.$.tracks.$[track].liked': false}}, {arrayFilters: [{'track.filepath': req.query.file}]}, (err, results) => {
+            if (err) res.sendStatus(500)
+            else res.sendStatus(200);
+        });
+    });
 });
 
 app.post('/addData', (req, res) => {
@@ -105,7 +114,17 @@ app.post('/addData', (req, res) => {
         } else {
             res.send({data: results })
         }
-    })
+    });
 });
 
 app.post('/upload', uploadMedia);
+
+app.patch('/playCounts', (req, res) => {
+    AllModel.updateOne({_id: req.body._id}, req.body, (err, results) => {
+        if (err) {
+            res.sendStatus(500)
+        } else {
+            res.send({data: results })
+        }
+    });
+});
