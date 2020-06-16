@@ -58,7 +58,7 @@
           v-model="filter"
       ></v-text-field>
     </v-app-bar>
-    <v-main>
+    <v-main style="padding-bottom: 115px">
       <v-list v-if="!showLikedTracks">
         <v-list-group v-for="(artist, index) in filteredArtists" v-bind:key="artist._id">
           <template v-slot:activator>
@@ -99,9 +99,9 @@
           </v-list-group>
         </v-list-group>
       </v-list>
-      <v-row v-else>
+      <v-row v-else style="padding-left: 5px">
         <v-col v-for="track in filteredArtists" v-bind:key="track._id">
-          <liked-tracks @play="play" @deleteLike="deleteLike" :track="track"  style="margin-top: 100px"></liked-tracks>
+          <liked-tracks @play="switchTrack" @deleteLike="deleteLike" :track="track"></liked-tracks>
         </v-col>
       </v-row>
       <v-snackbar
@@ -116,8 +116,8 @@
           <v-list-item three-line>
             <v-list-item-content>
               <div class="overline mb-4">Current track</div>
-              <v-list-item-title class="headline mb-1">{{ fullTrackInfo.track.title }}</v-list-item-title>
-              <v-list-item-subtitle>{{ fullTrackInfo.artist.artist }}</v-list-item-subtitle>
+              <v-list-item-title class="headline mb-1">{{ currentTrackInfo.track }}</v-list-item-title>
+              <v-list-item-subtitle>{{ currentTrackInfo.artist }}</v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
         </v-card>
@@ -148,9 +148,6 @@
                   Volume:<br/>
                   <input id="volume" type="range" min="0" max="1" value="1" step="0.1" @input="setVolume">
                 </div>
-              </v-col>
-              <v-col cols="1">
-                <v-img :src="fullTrackInfo.album.cover"></v-img>
               </v-col>
               <v-col v-if="currentTrack !== ''">
                 Current track: <b>{{ currentTrack }}</b>
@@ -292,14 +289,14 @@
         )
       },
       currentTrack() {
-        if (this.fullTrackInfo.artist.artist !== undefined) {
-          return `${this.fullTrackInfo.artist.artist} - ${this.fullTrackInfo.track.title} (${this.fullTrackInfo.album.title}) [${this.fullTrackInfo.album.year}]`;
+        if (this.currentTrackInfo.artist !== '') {
+          return `${this.currentTrackInfo.artist} - ${this.currentTrackInfo.track}`;
         }
         return '';
       },
     },
     watch: {
-      'fullTrackInfo.track': function () {
+      'currentTrackInfo.track': function () {
         this.showAlert = true;
       }
     },
@@ -312,6 +309,11 @@
       editDialog: false,
       uploadDialog: false,
       countries: ['Russia', 'Germany', 'USA', 'Spain', 'Israel'],
+      currentTrackInfo: {
+        artist: '',
+        album: '',
+        track: ''
+      },
       fullTrackInfo: {
         artist: {},
         album: {},
@@ -336,16 +338,23 @@
         })
       },
       switchTrack(track, album, artist) {
-        if (this.fullTrackInfo.artist.artist === artist.artist && this.fullTrackInfo.track.title === track.title) {
-          this.player.playPause();
+        if (track.year === undefined) {
+          this.currentTrackInfo.artist = artist.artist;
+          this.currentTrackInfo.album = album.title;
+          this.currentTrackInfo.track = track.title;
+          this.currentTrackInfo.year = album.year;
+          this.currentTrackInfo.cover = album.cover;
         } else {
-          this.fullTrackInfo.artist = artist;
-          this.fullTrackInfo.album = album;
-          this.fullTrackInfo.track = track;
-          track.playCounts += 1;
-          this.saveData(artist);
-          this.player.load(`${FILE_URL}/${encodeURI(track.filepath)}`);
+          artist = _.find(this.all, {albums: [{tracks: [{filepath: track.filepath}]}]});
+          this.currentTrackInfo.artist = track.artist;
+          this.currentTrackInfo.album = track.album;
+          this.currentTrackInfo.track = track.title;
+          this.currentTrackInfo.year = track.year;
+          this.currentTrackInfo.cover = track.cover;
         }
+        track.playCounts += 1;
+        this.saveData(artist);
+        this.player.load(`${FILE_URL}/${encodeURI(track.filepath)}`);
       },
       setVolume(event) {
         this.player.setVolume(event.target.value);
@@ -389,7 +398,8 @@
         this.editDialog = true;
       },
       saveData(artist) {
-        if (artist === undefined) {
+        // затычка для операции редактирования
+        if (artist.type === 'click') {
           artist = this.editableArtist;
         }
         axios.patch(`${API_URL}/saveData`, artist).then((response) => {
@@ -414,17 +424,10 @@
           }
         })
       },
-      unzip() {
-        let formData = new FormData();
-        formData.append('file', this.zipFile);
-        axios.post(`${API_URL}/upload`, formData).then((response) => {
-          console.log(response)
-        })
-      },
       likeTrack(artist, album, track) {
         track.liked = !track.liked;
         this.editableArtist = artist;
-        this.saveData();
+        this.saveData(artist);
         if (track.liked) {
           this.saveLike(artist, album, track);
         } else {

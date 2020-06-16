@@ -28,7 +28,7 @@
             <v-card-actions>
               {{ track.album }} ({{ track.year }})
               <v-spacer></v-spacer>
-              <v-btn icon @click="$emit('play', track)">
+              <v-btn icon @click="$emit('play', track, null, null)">
                 <v-icon>mdi-play</v-icon>
               </v-btn>
               <v-btn icon @click="$emit('deleteLike', track)">
