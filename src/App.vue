@@ -15,7 +15,7 @@
             <v-list-item-title>Add new</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
-        <v-list-item @click="showLikedTracks = false; drawer = false" link>
+        <v-list-item @click="activePage = 1; drawer = false" link>
           <v-list-item-icon>
             <v-icon>mdi-home</v-icon>
           </v-list-item-icon>
@@ -59,7 +59,7 @@
       ></v-text-field>
     </v-app-bar>
     <v-main style="padding-bottom: 115px">
-      <v-list v-if="!showLikedTracks">
+      <v-list v-if="activePage === 1">
         <v-list-group v-for="(artist, index) in filteredArtists" v-bind:key="artist._id">
           <template v-slot:activator>
             <v-list-item-title>{{ artist.artist }}</v-list-item-title>
@@ -69,41 +69,17 @@
               </v-btn>
             </v-list-item-action>
           </template>
-
-          <v-list-group v-for="(album) in artist.albums" v-bind:key="album.title"
-                        no-action
-                        sub-group
-                        value="false"
-          >
-            <template v-slot:activator>
-              <v-list-item-content>
-                <v-list-item-title>[{{ album.year }}] {{ album.title }} ({{ album.genre }})</v-list-item-title>
-              </v-list-item-content>
-            </template>
-
-            <v-list-item
-                v-for="(track, i) in album.tracks"
-                :key="i"
-                link
-                @dblclick="switchTrack(track, album, artist)"
-            >
-              <v-list-item-title v-text="track.title"></v-list-item-title>
-              <v-list-item-icon>
-                <v-icon>mdi-music-note</v-icon> {{ track.playCounts }}
-                <v-btn @click.native.stop="likeTrack(artist, album, track)" icon>
-                  <v-icon v-if="track.liked">mdi-thumb-down</v-icon>
-                  <v-icon v-else>mdi-thumb-up</v-icon>
-                </v-btn>
-              </v-list-item-icon>
-            </v-list-item>
-          </v-list-group>
+          <v-list-item class="pl-14" v-for="(album) in artist.albums" :key="album.title" link @click="showAlbum(artist, album)">
+            <v-list-item-title v-text="`${album.title} (${album.year}) (${album.genre})`"></v-list-item-title>
+          </v-list-item>
         </v-list-group>
       </v-list>
-      <v-row v-else style="padding-left: 5px">
+      <v-row v-else-if="activePage === 2" style="padding-left: 5px">
         <v-col v-for="track in filteredArtists" v-bind:key="track._id">
           <liked-tracks @play="switchTrack" @deleteLike="deleteLike" :track="track"></liked-tracks>
         </v-col>
       </v-row>
+      <TracksInAlbum v-else-if="activePage === 3" :album="currentAlbum" :artist="currentArtist"></TracksInAlbum>
       <v-snackbar
           right
           top
@@ -151,7 +127,6 @@
               </v-col>
               <v-col v-if="currentTrack !== ''">
                 Current track: <b>{{ currentTrack }}</b>
-                <!--                <v-img :src="fullTrackInfo.album.cover" max-width="120" position="center"></v-img>-->
               </v-col>
             </v-row>
           </v-card-text>
@@ -233,13 +208,14 @@
   import axios from 'axios';
   import _ from 'lodash';
   import LikedTracks from "./components/LikedTracks";
+  import TracksInAlbum from "./components/TracksInAlbum";
 
   const API_URL = 'http://localhost:8081';
   const FILE_URL = 'http://127.0.0.1:8887';
   const COVER_ART_URL = 'https://coverartarchive.org/release';
   export default {
     name: 'App',
-    components: {LikedTracks},
+    components: {LikedTracks, TracksInAlbum},
     mounted () {
       this.$vuetify.theme.dark = true;
       this.player = WaveSurfer.create({
@@ -269,7 +245,7 @@
       },
       filteredArtists: function () {
         let self = this;
-        if (this.showLikedTracks) {
+        if (this.activePage === 2) {
           return this.likedTracks.filter(
               function (o) {
                 return ((self.filter === '')
@@ -279,14 +255,17 @@
                 )
               }
           )
+        } else if (this.activePage === 1) {
+          return this.all.filter(
+              function (o) {
+                return ((self.filter === '')
+                    || (o.artist.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
+                )
+              }
+          )
+        } else {
+          return false;
         }
-        return this.all.filter(
-            function (o) {
-              return ((self.filter === '')
-                  || (o.artist.toUpperCase().indexOf(self.filter.toUpperCase()) >= 0)
-              )
-            }
-        )
       },
       currentTrack() {
         if (this.currentTrackInfo.artist !== '') {
@@ -314,6 +293,8 @@
         album: '',
         track: ''
       },
+      currentArtist: {},
+      currentAlbum: {},
       fullTrackInfo: {
         artist: {},
         album: {},
@@ -321,7 +302,7 @@
       },
       all: [],
       likedTracks: [],
-      showLikedTracks: false,
+      activePage: 1, // 1-main, 2-liked, 3-tracks in album
       editableArtist: {albums: [{
           title: '',
           year: ''
@@ -463,7 +444,7 @@
         })
       },
       showLiked() {
-        this.showLikedTracks = true;
+        this.activePage = 2;
         this.drawer = false;
       },
       play(track) {
@@ -473,6 +454,11 @@
         this.fullTrackInfo.track.title = track.title;
         this.player.load(`${FILE_URL}/${encodeURI(track.filepath)}`);
       },
+      showAlbum(artist, album) {
+        this.currentAlbum = album;
+        this.currentArtist = artist;
+        this.activePage = 3;
+      }
     },
   };
 </script>
